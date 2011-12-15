@@ -1,10 +1,6 @@
 # Partially stolen from Django Queue Service
 # (http://code.google.com/p/django-queue-service)
-from django.db import transaction, connection, models
-try:
-    from django.db import connections, router
-except ImportError:  # pre-Django 1.2
-    connections = router = None
+from django.db import models
 
 
 class QueueManager(models.Manager):
@@ -55,16 +51,5 @@ class MessageManager(models.Manager):
             pass
 
     def cleanup(self):
-        cursor = self.connection_for_write().cursor()
-        try:
-            cursor.execute("DELETE FROM %s WHERE visible=%%s" % (
-                            self.model._meta.db_table, ), (False, ))
-        except:
-            transaction.rollback_unless_managed()
-        else:
-            transaction.commit_unless_managed()
+        self.filter(visible=False).delete()
 
-    def connection_for_write(self):
-        if connections:
-            return connections[router.db_for_write(self.model)]
-        return connection
